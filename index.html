@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="th" translate="no">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="google" content="notranslate">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#002b5e">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="ระบบ ศน.">
+  <link rel="apple-touch-icon" href="https://upload.wikimedia.org/wikipedia/th/6/6a/Obec_logo.png">
+  <link rel="shortcut icon" href="https://upload.wikimedia.org/wikipedia/th/6/6a/Obec_logo.png">
+
+  <title>ระบบบันทึกผลการปฏิบัติงาน ศึกษานิเทศก์</title>
+  
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <style>
+    body { background-color: #f4f6f9; font-family: 'Sarabun', sans-serif; color: #333; }
+    .bg-official { background-color: #002b5e !important; }
+    .text-official { color: #002b5e !important; }
+    .obec-logo { height: 60px; margin-right: 15px; filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.3)); }
+    
+    /* 🌟 สไตล์สำหรับหน้า Login 🌟 */
+    #login-ui {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #002b5e 0%, #004b9e 100%);
+    }
+    .login-card {
+      background: white;
+      padding: 40px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 400px;
+    }
+    .login-logo { width: 90px; height: auto; margin-bottom: 20px; }
+    
+    /* สไตล์ระบบหลัก */
+    .menu-btn { display: block; width: 100%; text-align: left; padding: 12px 15px; margin-bottom: 8px; border: none; background: transparent; border-radius: 8px; font-weight: 500; color: #333; transition: 0.2s; }
+    .menu-btn:hover { background-color: #e9ecef; }
+    .menu-btn.active { background-color: #002b5e; color: white; box-shadow: 0 4px 10px rgba(0, 43, 94, 0.2); }
+    .menu-btn.active-danger { background-color: #dc3545; color: white; box-shadow: 0 4px 10px rgba(220, 53, 69, 0.2); }
+    
+    .page-section { display: none; background: white; border-radius: 12px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); border-top: 4px solid #002b5e; min-height: 70vh; }
+    .page-section.active-page { display: block; }
+    
+    .data-card { transition: transform 0.2s; border: 1px solid #eaeaea; }
+    .data-card:hover { transform: translateY(-3px); box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important; }
+    .img-custom { border-radius: 8px; object-fit: cover; width: 100%; max-height: 200px; border: 1px solid #ddd; padding: 2px; }
+
+    #print-ui {
+      display: none; background: white; width: 210mm; min-height: 297mm; margin: 0 auto;
+      padding: 20mm 20mm 25mm 25mm; font-family: 'Sarabun', sans-serif; font-size: 16pt; color: black; line-height: 1.5;
+    }
+    .print-garuda { width: 55px; height: auto; display: block; margin: 0 auto 15px auto; }
+    .print-title { text-align: center; font-weight: bold; font-size: 20pt; margin-bottom: 20px; }
+    .print-header-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .print-content { text-align: justify; text-justify: inter-word; margin-bottom: 20px; text-indent: 2.5cm; }
+    .print-img-container { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 30px; }
+    .print-img { max-width: 180px; max-height: 150px; object-fit: cover; border: 1px solid #ccc; border-radius: 4px; }
+    .print-signature { text-align: center; width: 250px; float: right; margin-top: 30px; }
+    
+    @media print {
+      body { background-color: white; margin: 0; padding: 0; }
+      #login-ui, #main-ui { display: none !important; }
+      #print-ui { display: block !important; margin: 0; padding: 15mm; width: 100%; }
+      @page { size: A4; margin: 0; }
+    }
+  </style>
+
+  <script>
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      alert("เกิดข้อผิดพลาดในระบบ\nข้อความ: " + msg + "\nบรรทัดที่: " + lineNo);
+      return false;
+    };
+  </script>
+</head>
+<body>
+
+  <div id="login-ui">
+    <div class="container d-flex justify-content-center">
+      <div class="login-card text-center">
+        <img src="https://upload.wikimedia.org/wikipedia/th/6/6a/Obec_logo.png" alt="โลโก้ สพฐ." class="login-logo">
+        <h4 class="fw-bold text-official mb-1">ระบบบันทึก</h4>
+        <p class="text-muted small mb-4">การปฏิบัติงาน ศึกษานิเทศก์ (สพฐ.)</p>
+        
+        <form id="loginForm" onsubmit="event.preventDefault(); processLogin();">
+          <div class="mb-3 text-start">
+            <label class="form-label fw-bold small text-secondary">ชื่อผู้ใช้ (Username)</label>
+            <div class="input-group shadow-sm">
+              <span class="input-group-text bg-white"><i class="fas fa-user text-muted"></i></span>
+              <input type="text" class="form-control border-start-0 ps-0" id="login-username" required>
+            </div>
+          </div>
+          <div class="mb-4 text-start">
+            <label class="form-label fw-bold small text-secondary">รหัสผ่าน (Password)</label>
+            <div class="input-group shadow-sm">
+              <span class="input-group-text bg-white"><i class="fas fa-lock text-muted"></i></span>
+              <input type="password" class="form-control border-start-0 ps-0" id="login-password" required>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 fw-bold py-2 shadow-sm" id="btn-login-submit" style="background-color: #002b5e; border: none;">
+            เข้าสู่ระบบ <i class="fas fa-sign-in-alt ms-1"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div id="main-ui" style="display: none;">
+    <nav class="navbar navbar-dark bg-official shadow-sm mb-4 py-3">
+      <div class="container d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+          <img src="https://upload.wikimedia.org/wikipedia/th/6/6a/Obec_logo.png" alt="โลโก้ สพฐ." class="obec-logo">
+          <div class="text-white text-md-start">
+            <h4 class="mb-0 fw-bold">ระบบบันทึกการปฏิบัติงาน</h4>
+            <span class="small opacity-75">สำนักงานคณะกรรมการการศึกษาขั้นพื้นฐาน (สพฐ.)</span>
+          </div>
+        </div>
+        <button class="btn btn-outline-light btn-sm" onclick="logout()"><i class="fas fa-sign-out-alt"></i> ออกจากระบบ</button>
+      </div>
+    </nav>
+
+    <div class="container-fluid px-md-5 pb-5">
+      <div class="row">
+        <div class="col-lg-3 col-md-4 mb-4">
+          <div class="card shadow-sm border-0 sticky-md-top" style="top: 20px;">
+            <div class="card-body p-3">
+              <h6 class="text-muted fw-bold mb-3 px-2"><i class="fas fa-bars me-2"></i> เมนูหลัก</h6>
+              
+              <button class="menu-btn active" id="nav-form" onclick="changePage('page-form')">
+                <i class="fas fa-file-signature me-2"></i> บันทึกการปฏิบัติงาน
+              </button>
+              <button class="menu-btn" id="nav-dash" onclick="changePage('page-dash')">
+                <i class="fas fa-th-list me-2"></i> ข้อมูลการปฏิบัติงาน
+              </button>
+              <button class="menu-btn" id="nav-analytics" onclick="changePage('page-analytics')">
+                <i class="fas fa-chart-pie me-2"></i> สถิติการปฏิบัติงาน
+              </button>
+              <hr class="my-2">
+              <button class="menu-btn text-danger" id="nav-admin" onclick="checkAdmin()">
+                <i class="fas fa-user-cog me-2"></i> จัดการระบบ (Admin)
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-9 col-md-8">
+          
+          <div id="page-form" class="page-section active-page">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+              <h4 class="fw-bold text-official m-0" id="formTitle"><i class="fas fa-edit me-2"></i> แบบฟอร์มบันทึกการปฏิบัติงาน</h4>
+              <button type="button" class="btn btn-outline-danger btn-sm" id="btn-cancel" style="display: none;" onclick="cancelEditMode()">
+                <i class="fas fa-times"></i> ยกเลิกแก้ไข
+              </button>
+            </div>
+            
+            <form id="mainForm">
+              <input type="hidden" id="editRowId" value="">
+              <div class="mb-3">
+                <label class="form-label fw-bold">วันที่ปฏิบัติงาน <span class="text-danger">*</span></label>
+                <input type="date" class="form-control" id="f-date" required>
+              </div>
+              <div class="row">
+                <div class="col-md-6 mb-3"><label class="form-label fw-bold">กิจกรรม <span class="text-danger">*</span></label><input type="text" class="form-control" id="f-activity" required></div>
+                <div class="col-md-6 mb-3"><label class="fw-bold">สถานที่ <span class="text-danger">*</span></label><input type="text" class="form-control" id="f-location" required></div>
+              </div>
+              <div class="mb-3">
+                <div class="d-flex justify-content-between mb-2">
+                  <label class="fw-bold">รายละเอียด</label>
+                  <button type="button" class="btn btn-sm btn-outline-primary fw-bold" id="btn-ai" onclick="generateAI()">🤖 ร่างข้อความ AI</button>
+                </div>
+                <textarea class="form-control" id="f-details" rows="5" required></textarea>
+              </div>
+              <div class="mb-4">
+                <label class="fw-bold">ภาพประกอบ (สูงสุด 3 ภาพ)</label>
+                <input type="file" class="form-control" id="f-images" accept="image/*" multiple>
+                <div class="form-text text-danger" id="imgHint">* หากแก้ไขข้อมูลและไม่เปลี่ยนภาพ ไม่ต้องแนบไฟล์ใหม่ครับ</div>
+              </div>
+              <button type="button" class="btn btn-primary w-100 fw-bold fs-5 py-2" id="btn-submit" onclick="submitData()">บันทึกข้อมูลเข้าสู่ระบบ</button>
+            </form>
+          </div>
+
+          <div id="page-dash" class="page-section">
+            <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+              <h4 class="fw-bold m-0 text-official"><i class="fas fa-th-list me-2"></i> ข้อมูลการปฏิบัติงาน</h4>
+              <div class="d-flex align-items-center">
+                <button type="button" class="btn btn-success btn-sm shadow-sm me-3" onclick="exportToExcel()"><i class="fas fa-file-excel me-1"></i> โหลด Excel</button>
+                <span class="badge bg-official fs-6 shadow-sm" id="totalRecords">รวม 0 รายการ</span>
+              </div>
+            </div>
+            
+            <div class="row mb-4 bg-light p-3 rounded border">
+              <div class="col-md-6 mb-2 mb-md-0">
+                <div class="input-group shadow-sm">
+                  <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                  <input type="text" id="searchBox" class="form-control border-start-0 ps-0" placeholder="ค้นหา กิจกรรม หรือ สถานที่..." onkeyup="applyFilter()">
+                </div>
+              </div>
+              <div class="col-md-3 mb-2 mb-md-0">
+                <select id="monthFilter" class="form-select shadow-sm" onchange="applyFilter()">
+                  <option value="">ทุกเดือน</option>
+                  <option value="01">มกราคม</option>
+                  <option value="02">กุมภาพันธ์</option>
+                  <option value="03">มีนาคม</option>
+                  <option value="04">เมษายน</option>
+                  <option value="05">พฤษภาคม</option>
+                  <option value="06">มิถุนายน</option>
+                  <option value="07">กรกฎาคม</option>
+                  <option value="08">สิงหาคม</option>
+                  <option value="09">กันยายน</option>
+                  <option value="10">ตุลาคม</option>
+                  <option value="11">พฤศจิกายน</option>
+                  <option value="12">ธันวาคม</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <select id="yearFilter" class="form-select shadow-sm" onchange="applyFilter()">
+                  <option value="">ทุกปี</option>
+                  <option value="2026">2569</option>
+                  <option value="2025">2568</option>
+                  <option value="2024">2567</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="dataContainer" class="row">
+              <div class="col-12 text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i><br>กำลังโหลด...</div>
+            </div>
+          </div>
+
+          <div id="page-analytics" class="page-section">
+            <h4 class="fw-bold m-0 text-official mb-4"><i class="fas fa-chart-pie me-2"></i> สถิติการปฏิบัติงาน</h4>
+            <div class="row">
+              <div class="col-lg-8 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                  <div class="card-body">
+                    <h6 class="fw-bold text-center mb-3 text-secondary">จำนวนการออกปฏิบัติงานรายเดือน (ปีปัจจุบัน)</h6>
+                    <canvas id="monthlyChart"></canvas>
+                  </div>
+                </div>
+              </div>
+              <div class="col-lg-4 mb-4">
+                <div class="card shadow-sm border-0 h-100">
+                  <div class="card-body">
+                    <h6 class="fw-bold text-center mb-3 text-secondary">สถานที่ปฏิบัติงาน (Top 5)</h6>
+                    <canvas id="locationChart"></canvas>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="page-admin" class="page-section" style="border-top-color: #dc3545;">
+            <h4 class="fw-bold mb-4 text-danger"><i class="fas fa-cogs me-2"></i> จัดการระบบ (Admin)</h4>
+            <input type="password" class="form-control mb-3" id="input-apikey" placeholder="วาง Gemini API Key ที่นี่">
+            <button type="button" class="btn btn-danger w-100 fw-bold" id="btn-save-api" onclick="saveKey()">อัปเดต API Key</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="print-ui">
+    <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Garuda_of_Thailand.svg/300px-Garuda_of_Thailand.svg.png" class="print-garuda" alt="ครุฑ">
+    <div class="print-title">รายงานผลการปฏิบัติงาน</div>
+    <div class="print-header-row"><div><strong>กิจกรรม/โครงการ:</strong> <span id="p-activity"></span></div></div>
+    <div class="print-header-row">
+      <div><strong>สถานที่:</strong> <span id="p-location"></span></div>
+      <div><strong>วันที่ปฏิบัติงาน:</strong> <span id="p-date"></span></div>
+    </div>
+    <hr style="border-top: 2px solid black; opacity: 1; margin-top: 5px; margin-bottom: 20px;">
+    <div><strong>รายละเอียดผลการปฏิบัติงาน:</strong></div>
+    <div class="print-content" id="p-details"></div>
+    <div><strong>ภาพประกอบการปฏิบัติงาน:</strong></div>
+    <div class="print-img-container" id="p-images"></div>
+    <div class="print-signature">
+      (ลงชื่อ)........................................................ผู้รายงาน<br>
+      (........................................................)<br>
+      ตำแหน่ง ศึกษานิเทศก์
+    </div>
+    <div style="clear: both;"></div>
+  </div>
+
+  <script>
+    let myGlobalData = [];
+    let myFilteredData = [];
+    let monthlyChartInstance = null;
+    let locationChartInstance = null;
+
+    // ==========================================
+    // 🌟 1. ระบบจัดการ Login
+    // ==========================================
+    function processLogin() {
+      let user = document.getElementById('login-username').value;
+      let pass = document.getElementById('login-password').value;
+      
+      let btn = document.getElementById('btn-login-submit');
+      let originalHtml = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> กำลังตรวจสอบ...';
+      btn.disabled = true;
+
+      google.script.run.withSuccessHandler(function(res) {
+        if (res.status === 'success') {
+          // ถ้าผ่าน ให้ซ่อนหน้า Login และแสดงหน้า Main
+          document.getElementById('login-ui').style.display = 'none';
+          document.getElementById('main-ui').style.display = 'block';
+          Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ยินดีต้อนรับเข้าสู่ระบบ', showConfirmButton: false, timer: 2000 });
+        } else {
+          Swal.fire({ icon: 'error', title: 'ล้มเหลว', text: res.message, confirmButtonColor: '#002b5e' });
+        }
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }).withFailureHandler(function(err) {
+        Swal.fire({ icon: 'error', title: 'เซิร์ฟเวอร์ขัดข้อง', text: err.message, confirmButtonColor: '#002b5e' });
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+      }).authenticateUser(user, pass);
+    }
+
+    function logout() {
+      Swal.fire({
+        title: 'ออกจากระบบ?',
+        text: "คุณต้องการออกจากระบบใช่หรือไม่?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#002b5e',
+        cancelButtonColor: '#dc3545',
+        confirmButtonText: 'ใช่, ออกจากระบบ',
+        cancelButtonText: 'ยกเลิก'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          document.getElementById('main-ui').style.display = 'none';
+          document.getElementById('login-ui').style.display = 'flex';
+          document.getElementById('loginForm').reset();
+        }
+      });
+    }
+
+    // --- 2. ฟังก์ชันสลับหน้าต่าง (เมนู) ---
+    function changePage(targetPageId) {
+      document.getElementById('page-form').style.display = 'none';
+      document.getElementById('page-dash').style.display = 'none';
+      document.getElementById('page-analytics').style.display = 'none';
+      document.getElementById('page-admin').style.display = 'none';
+      
+      document.getElementById('nav-form').classList.remove('active');
+      document.getElementById('nav-dash').classList.remove('active');
+      document.getElementById('nav-analytics').classList.remove('active');
+      document.getElementById('nav-admin').classList.remove('active', 'active-danger');
+
+      document.getElementById(targetPageId).style.display = 'block';
+
+      if (targetPageId === 'page-form') { document.getElementById('nav-form').classList.add('active'); } 
+      else if (targetPageId === 'page-dash') { document.getElementById('nav-dash').classList.add('active'); fetchDataFromServer('dash'); } 
+      else if (targetPageId === 'page-analytics') { document.getElementById('nav-analytics').classList.add('active'); fetchDataFromServer('analytics'); } 
+      else if (targetPageId === 'page-admin') { document.getElementById('nav-admin').classList.add('active-danger'); }
+    }
+
+    // --- 3. ฟังก์ชัน Admin & AI ---
+    function checkAdmin() {
+      Swal.fire({
+        title: '🔒 เข้าสู่ระบบผู้ดูแล', input: 'password', inputLabel: 'กรุณากรอกรหัสผ่าน',
+        showCancelButton: true, confirmButtonText: 'ตกลง', cancelButtonText: 'ยกเลิก', confirmButtonColor: '#002b5e', cancelButtonColor: '#dc3545'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          if (result.value === "1234") { changePage('page-admin'); Swal.fire({ icon: 'success', title: 'สำเร็จ', showConfirmButton: false, timer: 1000 }); } 
+          else { Swal.fire({ icon: 'error', title: 'รหัสไม่ถูกต้อง!', confirmButtonColor: '#002b5e' }); }
+        }
+      });
+    }
+
+    function saveKey() {
+      let key = document.getElementById('input-apikey').value;
+      if (!key) return;
+      document.getElementById('btn-save-api').innerText = "กำลังบันทึก...";
+      google.script.run.withSuccessHandler(function(res) {
+        Swal.fire({ icon: 'success', title: 'เรียบร้อย!', text: res.message });
+        document.getElementById('btn-save-api').innerText = "อัปเดต API Key"; document.getElementById('input-apikey').value = '';
+      }).saveApiKey(key);
+    }
+
+    function generateAI() {
+      let act = document.getElementById('f-activity').value; let loc = document.getElementById('f-location').value;
+      if (!act || !loc) { Swal.fire({ icon: 'warning', title: 'กรุณากรอกกิจกรรมและสถานที่ก่อนครับ' }); return; }
+      let btn = document.getElementById('btn-ai'); btn.innerText = "รอสักครู่..."; btn.disabled = true;
+
+      google.script.run.withSuccessHandler(function(res) {
+        if (res.status === 'success') document.getElementById('f-details').value = res.text; 
+        else Swal.fire({ icon: 'error', title: 'ข้อผิดพลาด', text: res.message });
+        btn.innerText = "🤖 ร่างข้อความ AI"; btn.disabled = false;
+      }).generateDetailsWithAI(act, loc);
+    }
+
+    // --- 4. ฟังก์ชันดึงข้อมูลร่วม ---
+    function fetchDataFromServer(target) {
+      if(target === 'dash') document.getElementById('dataContainer').innerHTML = '<div class="col-12 text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x mb-3 text-primary"></i><br>กำลังโหลดข้อมูลสารสนเทศ...</div>';
+      
+      google.script.run.withSuccessHandler(function(data) {
+        myGlobalData = data; 
+        if(target === 'dash') applyFilter();
+        if(target === 'analytics') renderCharts();
+      }).withFailureHandler(function(error) {
+        if(target === 'dash') document.getElementById('dataContainer').innerHTML = '<div class="col-12 text-center text-danger py-4">เกิดข้อผิดพลาด: ' + error.message + '</div>';
+      }).getWorkData();
+    }
+
+    // --- 5. ระบบค้นหาและกรอง ---
+    function applyFilter() {
+      if (!myGlobalData || myGlobalData.length === 0) { renderDataCards([]); return; }
+      let searchText = document.getElementById('searchBox').value.toLowerCase();
+      let filterMonth = document.getElementById('monthFilter').value;
+      let filterYear = document.getElementById('yearFilter').value;
+
+      let filteredData = myGlobalData.filter(function(item) {
+        let r = item.data; let d = new Date(r[1]); let itemMonth = ""; let itemYear = "";
+        if (!isNaN(d.getTime())) { itemMonth = String(d.getMonth() + 1).padStart(2, '0'); itemYear = String(d.getFullYear()); } 
+        else { let p = r[1].split('/'); if (p.length === 3) { itemMonth = p[1].padStart(2, '0'); let y = parseInt(p[2]); if (y > 2500) y -= 543; itemYear = String(y); } }
+
+        let matchSearch = (r[2] || '').toLowerCase().includes(searchText) || (r[3] || '').toLowerCase().includes(searchText) || (r[4] || '').toLowerCase().includes(searchText);
+        let matchMonth = (filterMonth === "") || (itemMonth === filterMonth);
+        let matchYear = (filterYear === "") || (itemYear === filterYear);
+        return matchSearch && matchMonth && matchYear;
+      });
+      myFilteredData = filteredData;
+      renderDataCards(filteredData);
+    }
+
+    function renderDataCards(dataArray) {
+      let box = document.getElementById('dataContainer');
+      document.getElementById('totalRecords').innerText = "รวม " + dataArray.length + " รายการ";
+      if (dataArray.length === 0) { box.innerHTML = '<div class="col-12 text-center text-muted py-5 border rounded bg-white">ไม่พบข้อมูลที่ค้นหาครับ</div>'; return; }
+
+      let htmlStr = ''; let reversedData = [...dataArray].reverse();
+      for (let i = 0; i < reversedData.length; i++) {
+        let item = reversedData[i]; let r = item.data; let rowNum = item.rowNum;
+        let d = new Date(r[1]); let dateText = isNaN(d) ? r[1] : d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+
+        let imgHtml = ''; let hasImage = false;
+        if (r.length >= 6) {
+          let urls = [r[5], r[6], r[7]];
+          for (let j = 0; j < urls.length; j++) {
+            let url = urls[j];
+            if (url && url.trim() !== '') {
+              hasImage = true; let match = url.match(/[-\w]{25,}/);
+              if (match) { let cdnUrl = "https://lh3.googleusercontent.com/d/" + match[0]; imgHtml += `<a href="${url}" target="_blank" class="d-block mb-3 text-center"><img src="${cdnUrl}" class="img-custom shadow-sm" onerror="this.src='https://via.placeholder.com/400x300?text=Image+Unavailable';"></a>`; }
+            }
+          }
+        }
+        if (!hasImage) imgHtml = '<div class="text-center text-muted small py-5 bg-light rounded border h-100 d-flex align-items-center justify-content-center">ไม่มีภาพประกอบ</div>';
+
+        let btnEdit = `<button class="btn btn-sm btn-outline-warning text-nowrap me-2" onclick="startEditMode(${rowNum})"><i class="fas fa-edit"></i> แก้ไข</button>`;
+        let btnPdf = `<button class="btn btn-sm btn-outline-danger text-nowrap" onclick="exportPDF(${rowNum})"><i class="fas fa-file-pdf"></i> PDF</button>`;
+
+        htmlStr += `
+          <div class="col-12 mb-4">
+            <div class="card data-card shadow-sm border-0" style="border-top: 4px solid #002b5e !important;">
+              <div class="card-body p-4">
+                <div class="row">
+                  <div class="col-md-7 col-lg-8 mb-3 mb-md-0 pe-md-4">
+                    <div class="d-flex justify-content-between align-items-start mb-2"><h5 class="fw-bold m-0 text-dark">${r[2] || '-'}</h5><div class="d-flex">${btnEdit} ${btnPdf}</div></div>
+                    <div class="mb-3"><span class="badge bg-official me-2 py-2 px-3"><i class="far fa-calendar-alt me-1"></i> ${dateText}</span><span class="text-danger small fw-bold"><i class="fas fa-map-marker-alt"></i> ${r[4] || '-'}</span></div>
+                    <p class="mt-2 text-secondary" style="font-size: 1rem; line-height: 1.6; white-space: pre-wrap;">${r[3] || '-'}</p>
+                  </div>
+                  <div class="col-md-5 col-lg-4 d-flex flex-column justify-content-center">${imgHtml}</div>
+                </div>
+              </div>
+            </div>
+          </div>`;
+      }
+      box.innerHTML = htmlStr;
+    }
+
+    // --- 6. ส่งออก Excel ---
+    function exportToExcel() {
+      if (!myFilteredData || myFilteredData.length === 0) { Swal.fire({ icon: 'warning', title: 'ไม่มีข้อมูล', text: 'ไม่พบข้อมูลสำหรับส่งออก', confirmButtonColor: '#002b5e' }); return; }
+      let csvContent = "\uFEFF"; 
+      csvContent += "วันที่ปฏิบัติงาน,กิจกรรม/โครงการ,สถานที่ปฏิบัติงาน,รายละเอียดผลการปฏิบัติงาน\n";
+      let reversedData = [...myFilteredData].reverse(); 
+      reversedData.forEach(item => {
+        let r = item.data; let d = new Date(r[1]); let dateText = isNaN(d) ? r[1] : d.toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' });
+        let actVal = r[2] ? r[2].toString().replace(/"/g, '""') : ''; let locVal = r[4] ? r[4].toString().replace(/"/g, '""') : ''; let detVal = r[3] ? r[3].toString().replace(/"/g, '""') : '';
+        csvContent += `"${dateText}","${actVal}","${locVal}","${detVal}"\n`;
+      });
+      let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' }); let url = URL.createObjectURL(blob); let link = document.createElement("a"); link.setAttribute("href", url);
+      let today = new Date(); link.setAttribute("download", `รายงานผลการปฏิบัติงาน_${today.getDate()}-${today.getMonth()+1}-${today.getFullYear()}.csv`);
+      document.body.appendChild(link); link.click(); document.body.removeChild(link);
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'ดาวน์โหลด Excel สำเร็จ!', showConfirmButton: false, timer: 2000 });
+    }
+
+    // --- 7. กราฟสถิติ ---
+    function renderCharts() {
+      if (!myGlobalData || myGlobalData.length === 0) return;
+      let currentYear = new Date().getFullYear();
+      let monthCounts = { "01":0, "02":0, "03":0, "04":0, "05":0, "06":0, "07":0, "08":0, "09":0, "10":0, "11":0, "12":0 }; let locationCounts = {};
+
+      myGlobalData.forEach(item => {
+        let r = item.data; let d = new Date(r[1]); let mStr = ""; let yStr = "";
+        if (!isNaN(d.getTime())) { mStr = String(d.getMonth() + 1).padStart(2, '0'); yStr = d.getFullYear(); } 
+        else { let p = r[1].split('/'); if (p.length === 3) { mStr = p[1].padStart(2, '0'); let y = parseInt(p[2]); if (y > 2500) y -= 543; yStr = y; } }
+        if (yStr == currentYear && monthCounts[mStr] !== undefined) { monthCounts[mStr]++; }
+        let loc = r[4] ? r[4].trim() : 'ไม่ระบุ'; locationCounts[loc] = (locationCounts[loc] || 0) + 1;
+      });
+
+      let mLabels = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."]; let mData = Object.values(monthCounts);
+      let ctxM = document.getElementById('monthlyChart').getContext('2d');
+      if (monthlyChartInstance) monthlyChartInstance.destroy();
+      monthlyChartInstance = new Chart(ctxM, { type: 'bar', data: { labels: mLabels, datasets: [{ label: 'จำนวนการนิเทศ (ครั้ง)', data: mData, backgroundColor: '#002b5e', borderRadius: 6 }] }, options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+
+      let sortedLocs = Object.entries(locationCounts).sort((a,b) => b[1] - a[1]).slice(0, 5);
+      let lLabels = sortedLocs.map(i => i[0]); let lData = sortedLocs.map(i => i[1]);
+      let ctxL = document.getElementById('locationChart').getContext('2d');
+      if (locationChartInstance) locationChartInstance.destroy();
+      locationChartInstance = new Chart(ctxL, { type: 'doughnut', data: { labels: lLabels, datasets: [{ data: lData, backgroundColor: ['#dc3545', '#198754', '#ffc107', '#0dcaf0', '#6c757d'], borderWidth: 0 }] }, options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { family: 'Sarabun' } } } }, cutout: '60%' } });
+    }
+
+    // --- 8. PDF ---
+    function exportPDF(rowNum) {
+      let record = null;
+      for (let i = 0; i < myGlobalData.length; i++) { if (myGlobalData[i].rowNum === rowNum) { record = myGlobalData[i].data; break; } }
+      if (!record) return;
+
+      let d = new Date(record[1]); let fullDateStr = record[1];
+      if (!isNaN(d.getTime())) { const thaiMonths = ["มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน", "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม"]; fullDateStr = `${d.getDate()} ${thaiMonths[d.getMonth()]} ${d.getFullYear() + 543}`; }
+      document.getElementById('p-date').innerText = fullDateStr; document.getElementById('p-activity').innerText = record[2] || '-'; document.getElementById('p-location').innerText = record[4] || '-'; document.getElementById('p-details').innerText = record[3] || '-';
+
+      let pImagesHtml = '';
+      if (record.length >= 6) {
+        [record[5], record[6], record[7]].forEach(url => {
+          if(url && url.trim() !== '') { let match = url.match(/[-\w]{25,}/); if (match) { pImagesHtml += `<img src="https://lh3.googleusercontent.com/d/${match[0]}" class="print-img">`; } }
+        });
+      }
+      document.getElementById('p-images').innerHTML = pImagesHtml;
+
+      Swal.fire({ title: 'เตรียมสร้างเอกสาร PDF...', html: 'กรุณาเลือก <b>"บันทึกเป็น PDF (Save as PDF)"</b> ในหน้าต่างพิมพ์', timer: 2000, timerProgressBar: true, showConfirmButton: false, didOpen: () => { Swal.showLoading(); }
+      }).then(() => {
+        document.getElementById('main-ui').style.display = 'none'; document.getElementById('print-ui').style.display = 'block';
+        setTimeout(() => { window.print(); document.getElementById('main-ui').style.display = 'block'; document.getElementById('print-ui').style.display = 'none'; }, 500);
+      });
+    }
+
+    // --- 9. แก้ไข/บันทึก ---
+    function startEditMode(rowNum) {
+      let record = null;
+      for (let i = 0; i < myGlobalData.length; i++) { if (myGlobalData[i].rowNum === rowNum) { record = myGlobalData[i].data; break; } }
+      if (!record) return;
+
+      document.getElementById('editRowId').value = rowNum; document.getElementById('f-activity').value = record[2]; document.getElementById('f-details').value = record[3]; document.getElementById('f-location').value = record[4];
+      try { let d = new Date(record[1]); if (!isNaN(d.getTime())) { document.getElementById('f-date').value = d.toISOString().split('T')[0]; } else { let p = record[1].split('/'); if (p.length === 3) { let y = parseInt(p[2]); if (y > 2500) y -= 543; document.getElementById('f-date').value = y + "-" + p[1].padStart(2,'0') + "-" + p[0].padStart(2,'0'); } } } catch (e) {}
+
+      document.getElementById('formTitle').innerHTML = "กำลังแก้ไขข้อมูล (แถวที่ " + rowNum + ")"; document.getElementById('btn-cancel').style.display = "inline-block"; document.getElementById('btn-submit').innerText = "บันทึกการแก้ไขข้อมูล"; document.getElementById('btn-submit').classList.replace('btn-primary', 'btn-warning');
+      changePage('page-form'); window.scrollTo(0, 0);
+    }
+
+    function cancelEditMode() {
+      document.getElementById('mainForm').reset(); document.getElementById('editRowId').value = ""; document.getElementById('formTitle').innerHTML = '<i class="fas fa-edit me-2"></i> แบบฟอร์มบันทึกการปฏิบัติงาน'; document.getElementById('btn-cancel').style.display = "none"; document.getElementById('btn-submit').innerText = "บันทึกข้อมูลเข้าสู่ระบบ"; document.getElementById('btn-submit').classList.replace('btn-warning', 'btn-primary');
+      changePage('page-dash');
+    }
+
+    function fileToBase64(file) { return new Promise(function(resolve, reject) { let reader = new FileReader(); reader.onload = function(e) { resolve({ name: file.name, mimeType: file.type, base64: e.target.result }); }; reader.onerror = function(e) { reject(e); }; reader.readAsDataURL(file); }); }
+
+    async function submitData() {
+      if (!document.getElementById('f-date').value || !document.getElementById('f-activity').value || !document.getElementById('f-location').value || !document.getElementById('f-details').value) { Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอกข้อมูลที่มีเครื่องหมาย * ให้ครบถ้วนครับ' }); return; }
+      let fileInput = document.getElementById('f-images'); let files = fileInput.files;
+      if (files.length > 3) { Swal.fire({ icon: 'warning', title: 'เกินลิมิต', text: 'แนบภาพได้สูงสุด 3 ภาพครับ' }); return; }
+
+      let btn = document.getElementById('btn-submit'); let originalText = btn.innerText; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> กำลังประมวลผลการบันทึก...'; btn.disabled = true;
+
+      let payload = { rowId: document.getElementById('editRowId').value, workDate: document.getElementById('f-date').value, activity: document.getElementById('f-activity').value, details: document.getElementById('f-details').value, location: document.getElementById('f-location').value, images: [] };
+
+      try {
+        if (files.length > 0) { for (let i = 0; i < files.length; i++) payload.images.push(await fileToBase64(files[i])); }
+        google.script.run.withSuccessHandler(function(res) {
+          if (res.status === 'success') { Swal.fire({ icon: 'success', title: 'สำเร็จ!', text: res.message, showConfirmButton: false, timer: 1500 }); if (payload.rowId) cancelEditMode(); else { document.getElementById('mainForm').reset(); window.scrollTo(0, 0); } } 
+          else Swal.fire({ icon: 'error', title: 'ข้อผิดพลาด', text: res.message });
+          btn.innerText = originalText; btn.disabled = false;
+        }).withFailureHandler(function(err) { Swal.fire({ icon: 'error', title: 'เซิร์ฟเวอร์ขัดข้อง', text: err.message }); btn.innerText = originalText; btn.disabled = false; }).saveOrUpdateRecord(payload);
+      } catch (e) { Swal.fire({ icon: 'error', title: 'ข้อผิดพลาด', text: 'เกิดข้อผิดพลาดในการอ่านไฟล์ภาพครับ' }); btn.innerText = originalText; btn.disabled = false; }
+    }
+  </script>
+</body>
+</html>
