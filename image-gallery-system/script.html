@@ -1,0 +1,428 @@
+<script>
+  /* =============================================================================
+   * Frontend logic — communicates with Code.gs exclusively via
+   * google.script.run.withSuccessHandler(...).withFailureHandler(...)
+   * ========================================================================== */
+
+  const state = {
+    search: '',
+    sortBy: 'newest',
+    page: 1,
+    pageSize: 24,
+    adminToken: null,
+    dailyChart: null
+  };
+
+  // ------------------------------------------------------------------ utils
+  function showLoading() { document.getElementById('loadingOverlay').hidden = false; }
+  function hideLoading() { document.getElementById('loadingOverlay').hidden = true; }
+
+  function toast(message, type) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (type ? ' ' + type : '');
+    el.textContent = message;
+    document.getElementById('toastContainer').appendChild(el);
+    setTimeout(function () { el.remove(); }, 3500);
+  }
+
+  function friendlyError(err) {
+    const msg = (err && err.message) ? err.message : String(err);
+    toast(msg, 'error');
+    hideLoading();
+  }
+
+  function escapeHtml(str) {
+    return (str || '').toString()
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function formatBytes(bytes) {
+    bytes = Number(bytes) || 0;
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function openModal(id) { document.getElementById(id).hidden = false; }
+  function closeModal(id) { document.getElementById(id).hidden = true; }
+
+  document.querySelectorAll('[data-close]').forEach(function (btn) {
+    btn.addEventListener('click', function () { closeModal(btn.getAttribute('data-close')); });
+  });
+  document.querySelectorAll('.modal-backdrop').forEach(function (backdrop) {
+    backdrop.addEventListener('click', function (e) {
+      if (e.target === backdrop) backdrop.hidden = true;
+    });
+  });
+
+  // ------------------------------------------------------------------ gallery
+  function loadGallery() {
+    showLoading();
+    google.script.run
+      .withSuccessHandler(function (result) { renderGallery(result); hideLoading(); })
+      .withFailureHandler(friendlyError)
+      .getImages({ search: state.search, sortBy: state.sortBy, page: state.page, pageSize: state.pageSize });
+  }
+
+  function renderGallery(result) {
+    const grid = document.getElementById('galleryGrid');
+    const empty = document.getElementById('emptyState');
+    grid.innerHTML = '';
+
+    if (!result.items.length) {
+      empty.hidden = false;
+      document.getElementById('galleryPagination').innerHTML = '';
+      return;
+    }
+    empty.hidden = true;
+
+    result.items.forEach(function (img) {
+      grid.appendChild(buildImageCard(img, false));
+    });
+
+    renderPagination(result);
+  }
+
+  function buildImageCard(img, isManage) {
+    const card = document.createElement('div');
+    card.className = 'image-card';
+    card.innerHTML =
+      '<div class="thumb-wrap" data-open="' + img.id + '">' +
+        '<img src="' + img.thumbnailUrl + '" alt="' + escapeHtml(img.title) + '" loading="lazy">' +
+      '</div>' +
+      '<div class="card-body">' +
+        '<div class="card-title" title="' + escapeHtml(img.title) + '">' + escapeHtml(img.title) + '</div>' +
+        '<div class="card-meta"><span>⬇ ' + img.downloadCount + '</span><span>' + formatBytes(img.fileSize) + '</span></div>' +
+        '<div class="card-actions">' +
+          '<button class="btn btn-outline" data-open="' + img.id + '">ดูภาพ</button>' +
+          '<button class="btn btn-primary" data-download="' + img.id + '">ดาวน์โหลด</button>' +
+          (isManage ? '<button class="btn btn-danger" data-delete="' + img.id + '">ลบ</button>' : '') +
+        '</div>' +
+      '</div>';
+
+    card.querySelectorAll('[data-open]').forEach(function (el) {
+      el.addEventListener('click', function () { openLightbox(img.id); });
+    });
+    card.querySelector('[data-download]').addEventListener('click', function (e) {
+      e.stopPropagation();
+      downloadImage(img.id);
+    });
+    if (isManage) {
+      card.querySelector('[data-delete]').addEventListener('click', function (e) {
+        e.stopPropagation();
+        confirmDeleteImage(img.id);
+      });
+    }
+    return card;
+  }
+
+  function renderPagination(result) {
+    const wrap = document.getElementById('galleryPagination');
+    wrap.innerHTML = '';
+    if (result.totalPages <= 1) return;
+
+    const prev = document.createElement('button');
+    prev.textContent = '‹';
+    prev.disabled = result.page <= 1;
+    prev.addEventListener('click', function () { state.page--; loadGallery(); });
+    wrap.appendChild(prev);
+
+    for (let p = 1; p <= result.totalPages; p++) {
+      const btn = document.createElement('button');
+      btn.textContent = p;
+      if (p === result.page) btn.className = 'active';
+      btn.addEventListener('click', function () { state.page = p; loadGallery(); });
+      wrap.appendChild(btn);
+    }
+
+    const next = document.createElement('button');
+    next.textContent = '›';
+    next.disabled = result.page >= result.totalPages;
+    next.addEventListener('click', function () { state.page++; loadGallery(); });
+    wrap.appendChild(next);
+  }
+
+  // ------------------------------------------------------------------ lightbox
+  function openLightbox(imageId) {
+    showLoading();
+    google.script.run
+      .withSuccessHandler(function (img) {
+        hideLoading();
+        if (!img) { toast('ไม่พบภาพนี้แล้ว', 'error'); return; }
+        document.getElementById('lightboxImage').src = img.previewUrl;
+        document.getElementById('lightboxTitle').textContent = img.title || img.fileName;
+        document.getElementById('lightboxDescription').textContent = img.description || '';
+        document.getElementById('lightboxTags').textContent = img.tags ? '#' + img.tags.split(',').map(function(t){return t.trim();}).join(' #') : '';
+        document.getElementById('lightboxDownloads').textContent = img.downloadCount + ' ดาวน์โหลด';
+        document.getElementById('lightboxDownloadBtn').onclick = function () { downloadImage(img.id); };
+        openModal('lightboxModal');
+      })
+      .withFailureHandler(friendlyError)
+      .getImageById(imageId);
+  }
+
+  // ------------------------------------------------------------------ download
+  function downloadImage(imageId) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        updateDownloadCountInUI(imageId, res.downloadCount);
+      })
+      .withFailureHandler(friendlyError)
+      .recordDownload(imageId);
+
+    // เปิด URL ดาวน์โหลดทันทีโดยไม่รอ recordDownload (UX เร็วขึ้น) — recordDownload ยังทำงานคู่ขนานเพื่อบันทึกสถิติ
+    google.script.run
+      .withSuccessHandler(function (url) { window.open(url, '_blank'); })
+      .withFailureHandler(friendlyError)
+      .getDownloadUrl(imageId);
+  }
+
+  function updateDownloadCountInUI(imageId, newCount) {
+    if (!document.getElementById('lightboxModal').hidden) {
+      document.getElementById('lightboxDownloads').textContent = newCount + ' ดาวน์โหลด';
+    }
+    if (document.getElementById('adminPage').hidden) {
+      loadGallery();
+    } else {
+      loadManageGrid();
+    }
+  }
+
+  // ------------------------------------------------------------------ search / sort
+  let searchDebounce = null;
+  document.getElementById('searchInput').addEventListener('input', function (e) {
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(function () {
+      state.search = e.target.value;
+      state.page = 1;
+      loadGallery();
+    }, 350);
+  });
+  document.getElementById('sortSelect').addEventListener('change', function (e) {
+    state.sortBy = e.target.value;
+    state.page = 1;
+    loadGallery();
+  });
+
+  // ------------------------------------------------------------------ admin: auth
+  document.getElementById('adminNavBtn').addEventListener('click', function () {
+    if (state.adminToken) {
+      showAdminPage();
+    } else {
+      document.getElementById('adminPasswordInput').value = '';
+      document.getElementById('adminLoginError').hidden = true;
+      openModal('adminLoginModal');
+    }
+  });
+
+  document.getElementById('adminLoginSubmit').addEventListener('click', submitAdminLogin);
+  document.getElementById('adminPasswordInput').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') submitAdminLogin();
+  });
+
+  function submitAdminLogin() {
+    const password = document.getElementById('adminPasswordInput').value;
+    showLoading();
+    google.script.run
+      .withSuccessHandler(function (res) {
+        hideLoading();
+        if (res.ok) {
+          state.adminToken = res.token;
+          closeModal('adminLoginModal');
+          showAdminPage();
+          toast('เข้าสู่ระบบแอดมินสำเร็จ', 'success');
+        } else {
+          const err = document.getElementById('adminLoginError');
+          err.textContent = 'รหัสผ่านไม่ถูกต้อง';
+          err.hidden = false;
+        }
+      })
+      .withFailureHandler(function (err) {
+        hideLoading();
+        const box = document.getElementById('adminLoginError');
+        box.textContent = (err && err.message) ? err.message : String(err);
+        box.hidden = false;
+      })
+      .verifyAdmin(password);
+  }
+
+  document.getElementById('adminLogoutBtn').addEventListener('click', function () {
+    state.adminToken = null;
+    document.getElementById('adminPage').hidden = true;
+    document.getElementById('galleryPage').hidden = false;
+  });
+
+  function showAdminPage() {
+    document.getElementById('galleryPage').hidden = true;
+    document.getElementById('adminPage').hidden = false;
+    loadManageGrid();
+    loadStats();
+  }
+
+  // ------------------------------------------------------------------ admin: tabs
+  document.querySelectorAll('.tab-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById(btn.getAttribute('data-tab')).classList.add('active');
+      if (btn.getAttribute('data-tab') === 'statsTab') loadStats();
+      if (btn.getAttribute('data-tab') === 'manageTab') loadManageGrid();
+    });
+  });
+
+  // ------------------------------------------------------------------ admin: upload
+  document.getElementById('uploadSubmitBtn').addEventListener('click', function () {
+    const files = document.getElementById('fileInput').files;
+    if (!files.length) { toast('เลือกไฟล์ภาพก่อน', 'error'); return; }
+
+    const title = document.getElementById('uploadTitle').value;
+    const description = document.getElementById('uploadDescription').value;
+    const tags = document.getElementById('uploadTags').value;
+    const progressBox = document.getElementById('uploadProgress');
+    progressBox.innerHTML = '';
+
+    const btn = document.getElementById('uploadSubmitBtn');
+    btn.disabled = true;
+
+    uploadFilesSequentially(Array.from(files), { title: title, description: description, tags: tags }, progressBox)
+      .then(function () {
+        btn.disabled = false;
+        document.getElementById('fileInput').value = '';
+        document.getElementById('uploadTitle').value = '';
+        document.getElementById('uploadDescription').value = '';
+        document.getElementById('uploadTags').value = '';
+        toast('อัปโหลดเสร็จสิ้น', 'success');
+        loadManageGrid();
+      });
+  });
+
+  // อัปโหลดทีละไฟล์ (ไม่ใช่พร้อมกันหมด) เพื่อเลี่ยงปัญหาขนาด payload/เวลา execution ของ Apps Script
+  function uploadFilesSequentially(files, meta, progressBox) {
+    let chain = Promise.resolve();
+    files.forEach(function (file, idx) {
+      const row = document.createElement('div');
+      row.textContent = file.name + ' — กำลังอัปโหลด...';
+      progressBox.appendChild(row);
+
+      chain = chain
+        .then(function () { return fileToBase64(file); })
+        .then(function (base64) {
+          return new Promise(function (resolve, reject) {
+            google.script.run
+              .withSuccessHandler(function () { row.textContent = file.name + ' — เสร็จแล้ว ✓'; resolve(); })
+              .withFailureHandler(function (err) {
+                row.textContent = file.name + ' — ล้มเหลว: ' + ((err && err.message) || err);
+                resolve(); // ไม่หยุดคิวแม้บางไฟล์ล้มเหลว
+              })
+              .uploadImage(
+                { base64: base64, mimeType: file.type, fileName: file.name },
+                meta,
+                state.adminToken
+              );
+          });
+        });
+    });
+    return chain;
+  }
+
+  function fileToBase64(file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function () {
+        const result = reader.result; // data:<mime>;base64,XXXX
+        resolve(result.substring(result.indexOf(',') + 1));
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ------------------------------------------------------------------ admin: manage
+  function loadManageGrid() {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        const grid = document.getElementById('manageGrid');
+        grid.innerHTML = '';
+        if (!result.items.length) {
+          grid.innerHTML = '<p style="color:var(--text-muted)">ยังไม่มีภาพในระบบ</p>';
+          return;
+        }
+        result.items.forEach(function (img) { grid.appendChild(buildImageCard(img, true)); });
+      })
+      .withFailureHandler(friendlyError)
+      .getImages({ search: '', sortBy: 'newest', page: 1, pageSize: 200 });
+  }
+
+  function confirmDeleteImage(imageId) {
+    if (!window.confirm('ต้องการลบภาพนี้ใช่หรือไม่? การลบไม่สามารถย้อนกลับได้')) return;
+    showLoading();
+    google.script.run
+      .withSuccessHandler(function () {
+        hideLoading();
+        toast('ลบภาพแล้ว', 'success');
+        loadManageGrid();
+        loadGallery();
+        loadStats();
+      })
+      .withFailureHandler(friendlyError)
+      .deleteImage(imageId, state.adminToken);
+  }
+
+  // ------------------------------------------------------------------ admin: stats
+  function loadStats() {
+    if (!state.adminToken) return;
+    google.script.run
+      .withSuccessHandler(renderStats)
+      .withFailureHandler(friendlyError)
+      .getStats(state.adminToken);
+  }
+
+  function renderStats(stats) {
+    document.getElementById('statTotalImages').textContent = stats.totalImages;
+    document.getElementById('statTotalDownloads').textContent = stats.totalDownloads;
+
+    const top10Body = document.getElementById('top10Body');
+    top10Body.innerHTML = '';
+    stats.top10.forEach(function (row, idx) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + (idx + 1) + '</td><td>' + escapeHtml(row.title) + '</td><td>' + row.downloadCount + '</td>';
+      top10Body.appendChild(tr);
+    });
+
+    const ctx = document.getElementById('dailyChart').getContext('2d');
+    const labels = stats.dailyDownloads.map(function (d) { return d.date.slice(5); });
+    const data = stats.dailyDownloads.map(function (d) { return d.count; });
+
+    if (state.dailyChart) state.dailyChart.destroy();
+    state.dailyChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'ดาวน์โหลด/วัน',
+          data: data,
+          borderColor: '#4f46e5',
+          backgroundColor: 'rgba(79,70,229,0.12)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+      }
+    });
+  }
+
+  // ------------------------------------------------------------------ init
+  (function init() {
+    loadGallery();
+    if (typeof INITIAL_PAGE !== 'undefined' && INITIAL_PAGE === 'admin' && !state.adminToken) {
+      openModal('adminLoginModal');
+    }
+  })();
+</script>

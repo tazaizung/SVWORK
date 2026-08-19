@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Image Gallery</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <?!= include('style'); ?>
+</head>
+<body>
+
+  <!-- ============ HEADER ============ -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <span class="brand-icon">🖼️</span>
+        <span class="brand-name">Image Gallery</span>
+      </div>
+
+      <div class="search-box">
+        <input id="searchInput" type="text" placeholder="ค้นหาจากชื่อหรือแท็ก..." autocomplete="off">
+        <select id="sortSelect">
+          <option value="newest">ล่าสุด</option>
+          <option value="popular">ยอดดาวน์โหลดสูงสุด</option>
+          <option value="name">ชื่อ (A-Z)</option>
+        </select>
+      </div>
+
+      <div class="topbar-actions">
+        <button id="adminNavBtn" class="btn btn-outline">แอดมิน</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============ GALLERY PAGE ============ -->
+  <main id="galleryPage" class="page">
+    <div id="galleryGrid" class="gallery-grid"></div>
+
+    <div id="emptyState" class="empty-state" hidden>
+      <div class="empty-icon">🗂️</div>
+      <p>ยังไม่มีภาพ หรือไม่พบผลลัพธ์ที่ค้นหา</p>
+    </div>
+
+    <div id="galleryPagination" class="pagination"></div>
+  </main>
+
+  <!-- ============ ADMIN LOGIN MODAL ============ -->
+  <div id="adminLoginModal" class="modal-backdrop" hidden>
+    <div class="modal admin-login-modal">
+      <button class="modal-close" data-close="adminLoginModal">&times;</button>
+      <h2>เข้าสู่ระบบแอดมิน</h2>
+      <div class="form-group">
+        <label for="adminPasswordInput">รหัสผ่าน</label>
+        <input id="adminPasswordInput" type="password" placeholder="กรอกรหัสผ่านแอดมิน">
+      </div>
+      <p id="adminLoginError" class="error-text" hidden></p>
+      <button id="adminLoginSubmit" class="btn btn-primary btn-block">เข้าสู่ระบบ</button>
+    </div>
+  </div>
+
+  <!-- ============ ADMIN PAGE ============ -->
+  <main id="adminPage" class="page" hidden>
+    <div class="admin-header">
+      <h1>แผงควบคุมแอดมิน</h1>
+      <div class="admin-tabs">
+        <button class="tab-btn active" data-tab="uploadTab">อัปโหลดภาพ</button>
+        <button class="tab-btn" data-tab="manageTab">จัดการภาพ</button>
+        <button class="tab-btn" data-tab="statsTab">สถิติ</button>
+      </div>
+      <button id="adminLogoutBtn" class="btn btn-outline">ออกจากระบบแอดมิน</button>
+    </div>
+
+    <!-- Upload tab -->
+    <section id="uploadTab" class="tab-panel active">
+      <div class="card">
+        <h3>อัปโหลดภาพใหม่ (เลือกได้หลายไฟล์)</h3>
+        <input id="fileInput" type="file" accept="image/*" multiple>
+        <div class="form-row">
+          <div class="form-group">
+            <label>ชื่อภาพ (title)</label>
+            <input id="uploadTitle" type="text" placeholder="ถ้าเว้นว่างจะใช้ชื่อไฟล์">
+          </div>
+          <div class="form-group">
+            <label>แท็ก (คั่นด้วยจุลภาค)</label>
+            <input id="uploadTags" type="text" placeholder="เช่น ธรรมชาติ, ทะเล">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>คำอธิบาย</label>
+          <textarea id="uploadDescription" rows="2" placeholder="คำอธิบายภาพ (ใช้ร่วมกันทุกไฟล์ที่เลือก)"></textarea>
+        </div>
+        <button id="uploadSubmitBtn" class="btn btn-primary">อัปโหลด</button>
+        <div id="uploadProgress" class="upload-progress"></div>
+      </div>
+    </section>
+
+    <!-- Manage tab -->
+    <section id="manageTab" class="tab-panel">
+      <div class="card">
+        <h3>ภาพทั้งหมด</h3>
+        <div id="manageGrid" class="gallery-grid manage-grid"></div>
+      </div>
+    </section>
+
+    <!-- Stats tab -->
+    <section id="statsTab" class="tab-panel">
+      <div class="stats-summary">
+        <div class="stat-card">
+          <div class="stat-value" id="statTotalImages">0</div>
+          <div class="stat-label">จำนวนภาพทั้งหมด</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="statTotalDownloads">0</div>
+          <div class="stat-label">ยอดดาวน์โหลดรวม</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>ยอดดาวน์โหลดย้อนหลัง 30 วัน</h3>
+        <canvas id="dailyChart" height="90"></canvas>
+      </div>
+      <div class="card">
+        <h3>Top 10 ภาพยอดนิยม</h3>
+        <table class="top10-table">
+          <thead><tr><th>#</th><th>ชื่อภาพ</th><th>ยอดดาวน์โหลด</th></tr></thead>
+          <tbody id="top10Body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ LIGHTBOX MODAL ============ -->
+  <div id="lightboxModal" class="modal-backdrop" hidden>
+    <div class="modal lightbox-modal">
+      <button class="modal-close" data-close="lightboxModal">&times;</button>
+      <img id="lightboxImage" src="" alt="">
+      <div class="lightbox-info">
+        <h3 id="lightboxTitle"></h3>
+        <p id="lightboxDescription"></p>
+        <p id="lightboxTags" class="tags"></p>
+        <div class="lightbox-meta">
+          <span id="lightboxDownloads">0 ดาวน์โหลด</span>
+          <button id="lightboxDownloadBtn" class="btn btn-primary">⬇ ดาวน์โหลด</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GLOBAL LOADING / TOAST ============ -->
+  <div id="loadingOverlay" class="loading-overlay" hidden>
+    <div class="spinner"></div>
+  </div>
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script>
+    // ?page=admin เปิดโมดัลล็อกอินแอดมินให้อัตโนมัติ (อ่านจาก doGet ฝั่งเซิร์ฟเวอร์)
+    var INITIAL_PAGE = '<?!= initialPage ?>';
+  </script>
+  <?!= include('script'); ?>
+</body>
+</html>
